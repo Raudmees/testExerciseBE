@@ -1,5 +1,6 @@
 const helper = require("../OpenWeatherAPI")
 const City = require("../models/city")
+const Record = require("../models/recordPoint")
 
 exports.getCityData = (req, res, next) => {
   const city = req.params.city
@@ -9,7 +10,7 @@ exports.getCityData = (req, res, next) => {
       if (!err) {
         res.status(200).json({
           currentWeather,
-        });
+        })
       }
       if (err) {
         console.log(err)
@@ -29,14 +30,21 @@ exports.addCityToDb = async (req, res, next) => {
 
   try {
     const city = new City({
-      name: name,
+      name: name
+    })
+
+    const response = await city.save()
+
+    const record = new Record({
       temperature: temperature,
       windSpeed: windSpeed,
       humidity: humidity,
-    });
+      belongsToCityId: response._id
+    })
 
-    await city.save();
+    await record.save()
     res.status(200).json({ message: "City saved to database" })
+
   } catch (err) {
     if (!err.statusCode) {
       err.statusCode = 500;
@@ -45,10 +53,18 @@ exports.addCityToDb = async (req, res, next) => {
   }
 };
 
-exports.getAllSavedCities = async (req, res, next) => {
+exports.getAllSavedCitiesAndTheirWeatherData = async (req, res, next) => {
   try {
     const cities = await City.find({})
-    res.status(200).json({ cities })
+    const citiesWithRecords = await Promise.all(cities.map(async city => {
+      const cityId = city._id
+      const cityName = city.name
+      const records = await Record.find({ belongsToCityId: cityId })
+      city = { name: cityName, _id: cityId, records }
+      return city
+    }))
+    console.log(citiesWithRecords)
+    res.status(200).json({ citiesWithRecords })
   } catch (error) {
     if (!err.statusCode) {
       err.statusCode = 500
@@ -61,6 +77,7 @@ exports.deleteCityFromDb = async (req, res, next) => {
   const cityId = req.params.id
   try {
     const city = await City.findByIdAndRemove(cityId)
+    await Record.deleteMany({ belongsToCityId: cityId })
     res.status(200).json({ message: "City deleted from database", deletedCityId: city._id })
   } catch (err) {
     if (!err.statusCode) {

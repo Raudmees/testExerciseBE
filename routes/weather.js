@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.get('/get-city/:city', weatherApiController.getCityData)
 
-router.get('/get-all-cities', weatherApiController.getAllSavedCities)
+router.get('/get-all-cities', weatherApiController.getAllSavedCitiesAndTheirWeatherData)
 
 router.post('/add-city', weatherApiController.addCityToDb)
 
